@@ -1,0 +1,5 @@
+venv
+vlcwinlib
+vlclib
+*.pyc
+__pycache__
