@@ -68,7 +68,7 @@ class Sound(QWidget):
         aformat.setSampleType(QAudioFormat.SignedInt)
 
         self.output = QAudioOutput(format=aformat)
-        self.output.setBufferSize(self.samplerate)
+        self.output.setBufferSize(self.samplerate * self.channels)
         self.buffer = self.output.start()
         
         self.timer = QTimer(self)
@@ -79,17 +79,21 @@ class Sound(QWidget):
         delta = (datetime.now() - self.startTime).total_seconds()
         free = self.output.bytesFree()
         if free > 0:
+            if self.data.isEmpty():
+                self.cs += 1
+                self.data = self.bps[self.cs]
+                print(delta, self.cs)
             self.buffer.write(self.data)
             self.data.remove(0, free)
         if delta >= self.duration: self.stop()
 
     def start(self):
-        self.bps = [QByteArray(self.stream[int(i*self.samplerate):int((i+1)*self.samplerate)].tobytes()) for i in range(int(self.duration - self.duration%1 + 1))]
+        self.bps = [QByteArray(self.stream[int(i*self.samplerate*2):int((i+1)*self.samplerate*2)].tobytes()) for i in range(int(self.duration - self.duration%1 + 1))]
 
         self.startTime = datetime.now()
         self.cs = 0
         self.consumed = 0
-        self.data = QByteArray(self.stream.tobytes())
+        self.data = self.bps[0]
         self.timer.start()
         
     def stop(self):

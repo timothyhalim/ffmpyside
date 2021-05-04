@@ -25,15 +25,12 @@ class MediaPlayer(FrameWidget):
         self.resourcePath = os.path.normpath(os.path.join(fileDir, "resource")).replace("\\", "/")
 
         self.audio = Sound(file, trim, self)
-        self.video = Image(file, bit, trim, self)
+        self.video = Image(file, bit, self)
         self.audio.lower()
         self.video.lower()
         for w in (self.audio, self.video):
             w.setFocusProxy(self)
         
-        self.setMinimumWidth(480)
-        self.setMinimumHeight(480 / self.video.width() / self.video.height())
-
         layout = QVBoxLayout(self)
         layout.setContentsMargins(5,5,5,5)
         
@@ -48,7 +45,7 @@ class MediaPlayer(FrameWidget):
         self.setupRightClick()
         self.setupSignal()
         
-        self.video.setStream(file, bit, trim)
+        self.video.setStream(file, bit)
 
     def setupWidget(self):
         # Top
@@ -153,6 +150,7 @@ class MediaPlayer(FrameWidget):
 
         # Player
         self.video.stateChanged.connect(self.onStateChanged)
+        self.video.ratioChanged.connect(self.onRatioChanged)
         self.video.frameCountChanged.connect(self.onFrameCountChanged)
         self.video.frameChanged.connect(self.onFrameChanged)
 
@@ -368,6 +366,11 @@ class MediaPlayer(FrameWidget):
         else:
             self.showFullScreen()
 
+    def onRatioChanged(self, ratio):
+        self.setMinimumWidth(480)
+        self.setMinimumHeight(480 / ratio)
+        self.setRatio(ratio)
+
     def onFrameCountChanged(self, frames):
         # self.timeSlider.setMaxTime(frames)
         self.timeSlider.setMaximum(frames)
@@ -425,6 +428,6 @@ class MediaPlayer(FrameWidget):
         self.video.setFrame(frame)
 
 app = QApplication([])
-w = MediaPlayer("song.mp4")
+w = MediaPlayer("60.mp4")
 w.show()
 app.exec_()

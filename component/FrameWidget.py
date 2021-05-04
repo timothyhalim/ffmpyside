@@ -59,7 +59,7 @@ class FrameWidget(QWidget):
         super(FrameWidget, self).__init__(parent)
 
         self.setWindowFlags(Qt.Window | Qt.FramelessWindowHint)
-        self.setAttribute(Qt.WA_TranslucentBackground)
+        # self.setAttribute(Qt.WA_TranslucentBackground)
         self.setAttribute(Qt.WA_Hover)
         self.setMouseTracking(True)
         self.setAcceptDrops(True)
@@ -127,7 +127,7 @@ class FrameWidget(QWidget):
     def setRatio(self, ratio=None):
         if ratio:
             self.ratio = ratio
-        self.keepRatio(self.size())
+        self.resize(self.keepRatio(self.size()))
 
     def keepRatio(self, size):
         newHeight = size.width()/self.ratio
