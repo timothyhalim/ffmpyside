@@ -75,7 +75,6 @@ class Sound(QWidget):
         self.timer.setInterval(1)
         self.timer.timeout.connect(self.addToBuffer)
 
-
     def addToBuffer(self):
         delta = (datetime.now() - self.startTime).total_seconds()
         free = self.output.bytesFree()
@@ -98,6 +97,9 @@ class Sound(QWidget):
 
     def setVolume(self, vol):
         self.output.setVolume(vol)
+
+    def seek(self, frame):
+        print(frame)
 
 if __name__ == "__main__":
     app = QApplication([])

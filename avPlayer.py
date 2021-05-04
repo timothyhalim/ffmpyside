@@ -19,7 +19,7 @@ except:
     fileDir = os.path.dirname(inspect.getframeinfo(inspect.currentframe()).filename)
 
 class MediaPlayer(FrameWidget):
-    def __init__(self, file, bit, trim, parent=None):
+    def __init__(self, file, bit=24, trim=None, parent=None):
         super(MediaPlayer, self).__init__(parent=parent)
         
         self.resourcePath = os.path.normpath(os.path.join(fileDir, "resource")).replace("\\", "/")
@@ -425,6 +425,6 @@ class MediaPlayer(FrameWidget):
         self.video.setFrame(frame)
 
 app = QApplication([])
-w = MediaPlayer("30.mp4", 24, 500)
+w = MediaPlayer("song.mp4")
 w.show()
 app.exec_()
