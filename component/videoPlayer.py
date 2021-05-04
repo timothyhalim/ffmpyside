@@ -77,18 +77,12 @@ class Image(QWidget):
         image = QImage(self.stream[0], self.info['width'], self.info['height'], self.imageFormat[self.info['bit']])
         self.pixmap = QPixmap(image)
 
-        self.setFixedHeight(self.info['height'])
-        self.setFixedWidth(self.info['width'])
+        # self.setFixedHeight(self.info['height'])
+        # self.setFixedWidth(self.info['width'])
         
         self.timer = QTimer(self)
         self.timer.setInterval(1)
         self.timer.timeout.connect(self.draw)
-
-        
-    def mouseReleaseEvent(self, event):
-        self.frame = -1
-        self.startTime = datetime.datetime.now()
-        self.timer.start()
 
     def draw(self):
         delta = (datetime.datetime.now() - self.startTime).total_seconds()
@@ -101,7 +95,7 @@ class Image(QWidget):
             self.pixmap = QPixmap(image)
             self.update()
             return
-        print("v----", delta)
+            
         image = QImage(self.stream[self.frame], self.info['width'], self.info['height'], self.imageFormat[self.info['bit']])
         self.pixmap = QPixmap(image)
     
@@ -115,6 +109,7 @@ class Image(QWidget):
 
     def start(self):
         self.startTime = datetime.datetime.now()
+        self.frame = -1
         self.timer.start()
         
     def stop(self):

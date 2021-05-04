@@ -78,10 +78,8 @@ class Sound(QWidget):
         delta = (datetime.now() - self.startTime).total_seconds()
         free = self.output.bytesFree()
         if free > 0:
-            print(free)
             self.buffer.write(self.data)
             self.data.remove(0, free)
-            print(delta)
         if delta >= self.duration: self.stop()
 
     def start(self):
