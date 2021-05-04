@@ -15,6 +15,7 @@ def streamAudio(file, trim=None):
         channels = int(audio_stream['channels'])
         samplerate = int(audio_stream['sample_rate'])
         duration = float(eval(audio_stream['duration']))
+        frames = int(audio_stream['nb_frames'])
         audio_codec = audio_stream.get('codec_name')
         if (audio_stream.get('sample_fmt') == 'fltp' and audio_codec in ['mp3', 'mp4', 'aac', 'webm', 'ogg']):
             bit = 16
@@ -40,10 +41,12 @@ def streamAudio(file, trim=None):
         )
 
         ticks = stream.shape[0]
+        print(audio_stream)
         metadata = {
             "codec" : audio_codec,
             "channels" : channels,
             "duration" : duration,
+            "frames" : frames,
             "bitcount" : ticks,
             "samplerate" : samplerate,
             "bit" : bit,
@@ -67,7 +70,6 @@ class Sound(QWidget):
         self.output = QAudioOutput(format=aformat)
         self.output.setBufferSize(self.samplerate)
         self.buffer = self.output.start()
-        print(self.buffer)
         
         self.timer = QTimer(self)
         self.timer.setInterval(1)
@@ -93,6 +95,9 @@ class Sound(QWidget):
         
     def stop(self):
         self.timer.stop()
+
+    def setVolume(self, vol):
+        self.output.setVolume(vol)
 
 if __name__ == "__main__":
     app = QApplication([])

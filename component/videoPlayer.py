@@ -1,7 +1,7 @@
 import datetime
 import numpy as np
 
-from PySide2.QtCore import QTimer
+from PySide2.QtCore import QTimer, Qt, Signal
 from PySide2.QtGui import QImage, QPainter, QPixmap
 from PySide2.QtWidgets import QApplication, QWidget
 
@@ -60,12 +60,13 @@ def streamVideo(file, bit=8, trim=None):
         return stream, metadata
 
 class Image(QWidget):
+    frameChanged = Signal(int)
+    frameCountChanged = Signal(int)
+    stateChanged = Signal(str)
+
     def __init__(self, file, bit, trim=None, parent=None):
         super(Image, self).__init__(parent=parent)
-
-        self.stream, self.info = streamVideo(file, bit, trim)
         
-        self.frame = -1
         
         self.imageFormat = {
             8 :  QImage.Format_Grayscale8,
@@ -74,32 +75,35 @@ class Image(QWidget):
             # 64:  QImage.Format_RGBA64_Premultiplied
         }
 
-        image = QImage(self.stream[0], self.info['width'], self.info['height'], self.imageFormat[self.info['bit']])
-        self.pixmap = QPixmap(image)
-
-        # self.setFixedHeight(self.info['height'])
-        # self.setFixedWidth(self.info['width'])
+        self.setAttribute(Qt.WA_Hover)
+        self.setMouseTracking(True)
         
         self.timer = QTimer(self)
         self.timer.setInterval(1)
         self.timer.timeout.connect(self.draw)
 
-    def draw(self):
-        delta = (datetime.datetime.now() - self.startTime).total_seconds()
-        frame = int((delta/self.info['duration']) * self.info['frameCount'])
+    def setStream(self, file, bit, trim):
+        self.stream, self.info = streamVideo(file, bit, trim)
+        self.frame = -1
+        self.setFrame(0)
+        self.frameCountChanged.emit(self.info['frameCount']-1)
+
+    def setFrame(self, frame):
         if frame == self.frame: return
+        if frame >= self.info['frameCount']: frame = self.info['frameCount']-1
         self.frame = frame
-        if self.frame >= self.info['frameCount'] or delta >= self.info['duration']:
-            self.timer.stop()
-            image = QImage(self.stream[self.info['frameCount']-1], self.info['width'], self.info['height'], self.imageFormat[self.info['bit']])
-            self.pixmap = QPixmap(image)
-            self.update()
-            return
-            
+        self.frameChanged.emit(self.frame)
         image = QImage(self.stream[self.frame], self.info['width'], self.info['height'], self.imageFormat[self.info['bit']])
         self.pixmap = QPixmap(image)
     
         self.update()
+
+    def draw(self):
+        delta = (datetime.datetime.now() - self.startTime).total_seconds()
+        frame = int((delta/self.info['duration']) * self.info['frameCount'])
+        self.setFrame(frame)
+        if self.frame >= self.info['frameCount'] or delta >= self.info['duration']:
+            self.timer.stop()
 
     def paintEvent(self, event):
         painter = QPainter()

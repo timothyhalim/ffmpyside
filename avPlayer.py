@@ -4,7 +4,7 @@ from PySide2.QtGui import QKeySequence
 from PySide2.QtWidgets import QAction, QApplication, QFileDialog, QGraphicsOpacityEffect, QHBoxLayout, QMenu, QPushButton, QSlider, QVBoxLayout, QWidget
 
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from component.audioPlayer import Sound
 from component.videoPlayer import Image
@@ -21,6 +21,9 @@ except:
 class MediaPlayer(FrameWidget):
     def __init__(self, file, bit, trim, parent=None):
         super(MediaPlayer, self).__init__(parent=parent)
+        
+        self.resourcePath = os.path.normpath(os.path.join(fileDir, "resource")).replace("\\", "/")
+
         self.audio = Sound(file, trim, self)
         self.video = Image(file, bit, trim, self)
         self.audio.lower()
@@ -28,8 +31,6 @@ class MediaPlayer(FrameWidget):
         for w in (self.audio, self.video):
             w.setFocusProxy(self)
         
-        self.resourcePath = os.path.normpath(os.path.join(fileDir, "resource")).replace("\\", "/")
-
         self.setMinimumWidth(480)
         self.setMinimumHeight(480 / self.video.width() / self.video.height())
 
@@ -46,14 +47,13 @@ class MediaPlayer(FrameWidget):
         self.setupWidget()
         self.setupRightClick()
         self.setupSignal()
-
-    def show(self):
-        self.toggleVisibility(False)
-        return super().show()
+        
+        self.video.setStream(file, bit, trim)
 
     def setupWidget(self):
         # Top
         self.pinBtn = ButtonIcon(icon=f"{self.resourcePath}/pin.svg", iconsize=15)
+        self.pinBtn.setCheckable(True)
         self.closeBtn = ButtonIcon(icon=f"{self.resourcePath}/cancel.svg", iconsize=15)
         self.topLayout = QHBoxLayout()
         self.topLayout.setContentsMargins(5,5,5,5)
@@ -120,18 +120,41 @@ class MediaPlayer(FrameWidget):
         self.timeSlider.setHeight(1)
         self.timeSlider.setFocusProxy(self)
 
+    def setupRightClick(self):
+        self.popMenu = QMenu(self)
+        self.openAct = QAction('Open File', self)
+        self.fullAct = QAction('Fullscreen', self)
+        self.atopAct = QAction('Pin on Top', self)
+        self.listAct = QAction('Playlist', self)
+        self.helpAct = QAction('Help', self)
+        self.exitAct = QAction('Exit', self)
+
+        for act in (self.openAct, self.fullAct, self.listAct, self.helpAct):
+            self.popMenu.addAction(act)
+        self.popMenu.addSeparator()
+        self.popMenu.addAction(self.exitAct)
+
+        # Initial 
+        self.fullAct.setCheckable(True)
+        self.listAct.setCheckable(True)
+
+        # Temp
+        self.listAct.setDisabled(True)
+        self.helpAct.setDisabled(True)
+
     def setupSignal(self):
         # Controller 
         self.closeBtn.clicked.connect(self.close)
         self.playBtn.clicked.connect(self.start)
-        # self.volumeSlider.valueChanged.connect(self.setVolume)
+        self.volumeSlider.valueChanged.connect(self.setVolume)
         self.addBtn.clicked.connect(self.openFile)
-        # self.timeSlider.sliderMoved.connect(self.seek)
+        self.timeSlider.sliderMoved.connect(self.seek)
+        self.pinBtn.clicked.connect(self.toggleOnTop)
 
         # Player
-        # self.stateChanged.connect(self.onStateChanged)
-        # self.lengthChanged.connect(self.onLengthChanged)
-        # self.timeChanged.connect(self.onTimeChanged)
+        self.video.stateChanged.connect(self.onStateChanged)
+        self.video.frameCountChanged.connect(self.onFrameCountChanged)
+        self.video.frameChanged.connect(self.onFrameChanged)
 
         # Right click
         self.openAct.triggered.connect(self.openFile)
@@ -143,6 +166,7 @@ class MediaPlayer(FrameWidget):
             self.lastMove = datetime.now()
             self.toggleVisibility(True)
         elif event.type() == QEvent.Type.Leave:
+            self.lastMove = datetime.now() - timedelta(seconds=5)
             self.toggleVisibility(False)
         return super(MediaPlayer, self).event(event)
 
@@ -179,7 +203,6 @@ class MediaPlayer(FrameWidget):
 
     def mouseMoveEvent(self, event):
         self.lastMove = datetime.now()
-        print(event)
         self.toggleVisibility(True)
 
         if self.lastButton == Qt.MouseButton.LeftButton:
@@ -280,28 +303,6 @@ class MediaPlayer(FrameWidget):
 
         return super(MediaPlayer, self).keyPressEvent(event)
 
-    def setupRightClick(self):
-        self.popMenu = QMenu(self)
-        self.openAct = QAction('Open File', self)
-        self.fullAct = QAction('Fullscreen', self)
-        self.atopAct = QAction('Pin on Top', self)
-        self.listAct = QAction('Playlist', self)
-        self.helpAct = QAction('Help', self)
-        self.exitAct = QAction('Exit', self)
-
-        for act in (self.openAct, self.fullAct, self.listAct, self.helpAct):
-            self.popMenu.addAction(act)
-        self.popMenu.addSeparator()
-        self.popMenu.addAction(self.exitAct)
-
-        # Initial 
-        self.fullAct.setCheckable(True)
-        self.listAct.setCheckable(True)
-
-        # Temp
-        self.listAct.setDisabled(True)
-        self.helpAct.setDisabled(True)
-
     def opacityAnimation(self, end, duration, callback):
         anims = []
         for fx in self.opacFX:
@@ -339,7 +340,6 @@ class MediaPlayer(FrameWidget):
             self.setCursor(Qt.ArrowCursor)
             
         self.move(self.pos().x(), self.pos().y())
-        # self.resize(self.width(), self.height())
 
         self.anims = self.opacityAnimation(1 if visible else 0, 300, self.toggleWidget)
         self.anims += [self.heightAnimation(w, 20 if visible else 1, 300, self.toggleWidget) for w in (self.addBtn, self.timeSlider, self.listBtn, self.repeatBtn)]
@@ -349,11 +349,10 @@ class MediaPlayer(FrameWidget):
         self.timeSlider.setTipVisibility(visible)
 
     def toggleOnTop(self):
-        # self.onTop = not self.onTop
-        self.onTop(not self.isOnTop())
-        self.update()
-        self.setWindowFlag(Qt.WindowStaysOnBottomHint, not self.isOnTop()) 
-        self.update()
+        self.onTop = not self.onTop
+        print("On Top", self.onTop)
+        # self.setWindowFlag(Qt.WindowStaysOnBottomHint,self.onTop) 
+        # self.update()
 
     def toggleCursor(self):
         if (datetime.now() - self.lastMove).seconds >= 5 :
@@ -368,15 +367,13 @@ class MediaPlayer(FrameWidget):
             self.showNormal()
         else:
             self.showFullScreen()
-        # self.resizeController()
 
-    def onLengthChanged(self, length):
-        self.timeSlider.setMaxTime(length)
-        self.timeSlider.setMaximum(int(length/1000*self.fps))
+    def onFrameCountChanged(self, frames):
+        # self.timeSlider.setMaxTime(frames)
+        self.timeSlider.setMaximum(frames)
 
-    def onTimeChanged(self, pos):
-        sliderPos = int(pos * self.timeSlider.maximum())
-        self.timeSlider.setValue(sliderPos)
+    def onFrameChanged(self, frame):
+        self.timeSlider.setValue(frame)
 
     def onStateChanged(self, state):
         if state == 'NothingSpecial':
@@ -410,14 +407,22 @@ class MediaPlayer(FrameWidget):
         if fileName != '':
             self.createMedia(fileName)
             self.play()
+    
+    def setVolume(self):
+        normalize = self.volumeSlider.value() / self.volumeSlider.maximum()
+        self.audio.setVolume(normalize)
 
     def start(self):
         self.audio.start()
         self.video.start()
 
-    def stop(self):
+    def pause(self):
         self.audio.stop()
         self.video.stop()
+
+    def seek(self, frame=None):
+        if frame is None: frame = self.timeSlider.value()
+        self.video.setFrame(frame)
 
 app = QApplication([])
 w = MediaPlayer("30.mp4", 24, 500)

@@ -12,8 +12,9 @@ class TimeSlider(QSlider):
         self.opt = QStyleOptionSlider()
         self.setMaximum(1000)
 
+        self.hover = False
         self.valueChanged.connect(self.showTip)
-        self.enterEvent = self.showTip
+        # self.enterEvent = self.showTip
         self.setTipVisibility(True)
 
         self.setStyleSheet(self.qss())
@@ -28,8 +29,17 @@ class TimeSlider(QSlider):
     def getHeight(self): return self.height()
     Height = Property(int, getHeight, setHeight)
 
+    def enterEvent(self, event):
+        super().enterEvent(event)
+        self.hover = True
+        self.showTip(True)
+
+    def leaveEvent(self, event) -> None:
+        super().leaveEvent(event)
+        self.hover = False
+
     def showTip(self, _):
-        if self.isVisible() and self.tipVisible:
+        if self.isVisible() and self.tipVisible and self.hover:
             self.initStyleOption(self.opt)
             rectHandle = self.style.subControlRect(self.style.CC_Slider, self.opt, self.style.SC_SliderHandle)
 
