@@ -35,6 +35,9 @@ Simple media player powered by Python, Qt, and FFMpeg
     - Playlist
 
 # Change Log
+5 May 2021
+- Audio seek by frame
+- Video stream async
 4 May 2021
 - Initial Work on Audio and Video Player
 
