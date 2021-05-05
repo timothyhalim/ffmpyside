@@ -374,6 +374,7 @@ class MediaPlayer(FrameWidget):
     def onFrameCountChanged(self, frames):
         # self.timeSlider.setMaxTime(frames)
         self.timeSlider.setMaximum(frames)
+        self.audio.setFrameCount(frames)
 
     def onFrameChanged(self, frame):
         self.timeSlider.setValue(frame)
@@ -416,8 +417,8 @@ class MediaPlayer(FrameWidget):
         self.audio.setVolume(normalize)
 
     def start(self):
-        self.audio.start()
         self.video.start()
+        self.audio.start()
 
     def pause(self):
         self.audio.stop()
@@ -426,6 +427,7 @@ class MediaPlayer(FrameWidget):
     def seek(self, frame=None):
         if frame is None: frame = self.timeSlider.value()
         self.video.setFrame(frame)
+        self.audio.seek(frame)
 
 app = QApplication([])
 w = MediaPlayer("60.mp4")

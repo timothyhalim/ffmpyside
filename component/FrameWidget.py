@@ -127,7 +127,9 @@ class FrameWidget(QWidget):
     def setRatio(self, ratio=None):
         if ratio:
             self.ratio = ratio
-        self.resize(self.keepRatio(self.size()))
+        newSize = self.keepRatio(self.size())
+        if newSize:
+            self.resize(self.keepRatio(self.size()))
 
     def keepRatio(self, size):
         newHeight = size.width()/self.ratio

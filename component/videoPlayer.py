@@ -65,6 +65,7 @@ class Image(QWidget):
     frameCountChanged = Signal(int)
     stateChanged = Signal(str)
     ratioChanged = Signal(float)
+    fpsChanged = Signal(float)
 
     def __init__(self, file, bit, parent=None):
         super(Image, self).__init__(parent=parent)
@@ -92,6 +93,7 @@ class Image(QWidget):
         self.stream.finished.connect(self.finishedStreaming)
         self.stream.start()
 
+        self.fpsChanged.emit(self.stream.metadata['fps'])
         self.ratioChanged.emit(self.stream.metadata['width']/self.stream.metadata['height'])
         self.frameCountChanged.emit(self.stream.metadata['frameCount']-1)
 

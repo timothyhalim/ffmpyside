@@ -74,21 +74,27 @@ class Sound(QWidget):
         self.timer = QTimer(self)
         self.timer.setInterval(1)
         self.timer.timeout.connect(self.addToBuffer)
+        self.setFrameCount(1)
+
+    def setFrameCount(self, frameCount):
+        self.frameCount = frameCount
+        self.setBitPerFrame()
 
     def addToBuffer(self):
         delta = (datetime.now() - self.startTime).total_seconds()
         free = self.output.bytesFree()
         if free > 0:
             if self.data.isEmpty():
-                self.cs += 1
                 self.data = self.bps[self.cs]
+                self.cs += 1
                 print(delta, self.cs)
             self.buffer.write(self.data)
             self.data.remove(0, free)
-        if delta >= self.duration: self.stop()
+        if delta >= self.duration or self.cs >= len(self.bps)-1: self.stop()
 
     def start(self):
-        self.bps = [QByteArray(self.stream[int(i*self.samplerate*2):int((i+1)*self.samplerate*2)].tobytes()) for i in range(int(self.duration - self.duration%1 + 1))]
+        
+        self.bps = [QByteArray(self.stream[int(i*self.output.bufferSize()):int((i+1)*self.output.bufferSize())].tobytes()) for i in range(int(self.duration - self.duration%1 + 1))]
 
         self.startTime = datetime.now()
         self.cs = 0
@@ -97,13 +103,34 @@ class Sound(QWidget):
         self.timer.start()
         
     def stop(self):
-        self.timer.stop()
+        if self.timer.isActive():
+            self.timer.stop()
+            self.setBitPerFrame()
 
     def setVolume(self, vol):
         self.output.setVolume(vol)
 
+    def setBitPerFrame(self):
+        bufferSize = self.samplerate * self.channels
+        self.output.setBufferSize(bufferSize)
+        
+        split = len(self.stream)/self.frameCount
+        n = max(1, int(split))
+        start = 0
+        self.bpf = []
+        for i in range(0, self.frameCount):
+            end = int(start + n)
+            self.bpf.append(QByteArray(self.stream[start:end].tobytes()))
+            start = end
+        count = 0
+        for x in self.bpf:
+            for y in self.bpf:
+                count += 1
+        print(self.frameCount)
+        print(count, "/", len(self.stream), len(self.bpf), "\n")
+
     def seek(self, frame):
-        print(frame)
+        self.buffer.write(self.bpf[frame])
 
 if __name__ == "__main__":
     app = QApplication([])
