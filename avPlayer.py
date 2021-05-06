@@ -18,17 +18,14 @@ except:
     import inspect
     fileDir = os.path.dirname(inspect.getframeinfo(inspect.currentframe()).filename)
 
-class MediaPlayer(FrameWidget):
+class MediaPlayer(Image):
     def __init__(self, file, bit=24, trim=None, parent=None):
         super(MediaPlayer, self).__init__(parent=parent)
         
         self.resourcePath = os.path.normpath(os.path.join(fileDir, "resource")).replace("\\", "/")
 
         self.audio = Sound(file, trim, self)
-        self.video = Image(file, bit, self)
-        self.audio.lower()
-        self.video.lower()
-        for w in (self.audio, self.video):
+        for w in [self.audio]:
             w.setFocusProxy(self)
         
         layout = QVBoxLayout(self)
@@ -36,16 +33,14 @@ class MediaPlayer(FrameWidget):
         
         self.onTop = False
         self.visible = False
-        self.drawDrag = False
         self.isPaused = False
         self.lastMove = datetime.now()
-        self.lastButton = Qt.MouseButton.NoButton
 
         self.setupWidget()
         self.setupRightClick()
         self.setupSignal()
         
-        self.video.setStream(file, bit)
+        self.setStream(file, bit)
 
     def setupWidget(self):
         # Top
@@ -94,10 +89,10 @@ class MediaPlayer(FrameWidget):
         self.layout().addStretch()
         self.layout().addLayout(self.bottomLayout)
 
-        self.timer = QTimer()
-        self.timer.setInterval(50)
-        self.timer.timeout.connect(self.toggleCursor)
-        self.timer.start()
+        self.visibilityTimer = QTimer()
+        self.visibilityTimer.setInterval(50)
+        self.visibilityTimer.timeout.connect(self.toggleCursor)
+        self.visibilityTimer.start()
 
         self.opacFX = []
         for w in (self.pinBtn, self.closeBtn, self.playBtn, self.volumeSlider, self.volumeBtn, self.addBtn, self.repeatBtn, self.listBtn):
@@ -149,10 +144,9 @@ class MediaPlayer(FrameWidget):
         self.pinBtn.clicked.connect(self.toggleOnTop)
 
         # Player
-        self.video.stateChanged.connect(self.onStateChanged)
-        self.video.ratioChanged.connect(self.onRatioChanged)
-        self.video.frameCountChanged.connect(self.onFrameCountChanged)
-        self.video.frameChanged.connect(self.onFrameChanged)
+        self.stateChanged.connect(self.onStateChanged)
+        self.frameCountChanged.connect(self.onFrameCountChanged)
+        self.frameChanged.connect(self.onFrameChanged)
 
         # Right click
         self.openAct.triggered.connect(self.openFile)
@@ -168,26 +162,21 @@ class MediaPlayer(FrameWidget):
             self.toggleVisibility(False)
         return super(MediaPlayer, self).event(event)
 
-    def resizeEvent(self, event):
-        super().resizeEvent(event)
-        self.video.setGeometry(0, 0, self.width(), self.height())
-
     def mousePressEvent(self, event):
         self.lastButton = event.button()
         if event.button() == Qt.MouseButton.LeftButton:
-            self.startPos = event.pos()
             self.lastClick = datetime.now()
         elif event.button() == Qt.MouseButton.MiddleButton:
             self.startFrame = self.timeSlider.value()
             self.startPos = event.pos()
-        return super(MediaPlayer, self).mousePressEvent(event)
+
+        super(MediaPlayer, self).mousePressEvent(event)
 
     def mouseReleaseEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:
             if hasattr(self, "startPos"):
                 if (datetime.now() - self.lastClick).microseconds/1000 < 300:
                     self.start()
-                delattr(self, "startPos")
 
         elif event.button() == Qt.MouseButton.RightButton:
             self.onRightClick(event.pos())
@@ -196,19 +185,12 @@ class MediaPlayer(FrameWidget):
             if hasattr(self, "startPos"): delattr(self, "startPos")
             if hasattr(self, "startFrame"): delattr(self, "startFrame")
 
-        self.lastButton = None
-        return super(MediaPlayer, self).mouseReleaseEvent(event)
+        super(MediaPlayer, self).mouseReleaseEvent(event)
 
     def mouseMoveEvent(self, event):
         self.lastMove = datetime.now()
         self.toggleVisibility(True)
-
-        if self.lastButton == Qt.MouseButton.LeftButton:
-            if not self.isFullScreen():
-                if hasattr(self, "startPos"):
-                    delta = event.pos()-self.startPos
-                    self.move(self.pos()+delta)
-        elif self.lastButton == Qt.MouseButton.MiddleButton:
+        if self.lastButton == Qt.MouseButton.MiddleButton:
             if hasattr(self, "startFrame"):
                 self.pause()
                 
@@ -221,13 +203,7 @@ class MediaPlayer(FrameWidget):
                 self.timeSlider.setValue(final)
                 self.seek()
 
-        return super(MediaPlayer, self).mouseMoveEvent(event)
-
-    def mouseDoubleClickEvent(self, event):
-        if event.button() == Qt.MouseButton.LeftButton:
-            self.toggleFullscreen()
-
-        return super(MediaPlayer, self).mouseDoubleClickEvent(event)
+        super(MediaPlayer, self).mouseMoveEvent(event)
 
     def wheelEvent(self, event):
         increment = int(self.volumeSlider.maximum() / 10)
@@ -236,21 +212,6 @@ class MediaPlayer(FrameWidget):
         elif (event.angleDelta().y()) < 0 :
             self.volumeSlider.setValue(self.volumeSlider.value()-increment)
         return super(MediaPlayer, self).wheelEvent(event)
-
-    def dragEnterEvent(self, event):
-        self.drawDrag = True
-        self.update()
-        if event.mimeData().hasUrls():
-            event.accept()
-        elif event.mimeData().hasText():
-            event.accept()
-        else:
-            event.ignore()
-    
-    def dragLeaveEvent(self, event):
-        self.drawDrag = False
-        self.update()
-        return super(MediaPlayer, self).dragLeaveEvent(event)
 
     def dropEvent(self, event):
         self.drawDrag = False
@@ -360,17 +321,6 @@ class MediaPlayer(FrameWidget):
             self.setCursor(Qt.ArrowCursor)
             self.toggleVisibility(True)
 
-    def toggleFullscreen(self):
-        if self.isFullScreen():
-            self.showNormal()
-        else:
-            self.showFullScreen()
-
-    def onRatioChanged(self, ratio):
-        self.setMinimumWidth(480)
-        self.setMinimumHeight(480 / ratio)
-        self.setRatio(ratio)
-
     def onFrameCountChanged(self, frames):
         # self.timeSlider.setMaxTime(frames)
         self.timeSlider.setMaximum(frames)
@@ -417,16 +367,16 @@ class MediaPlayer(FrameWidget):
         self.audio.setVolume(normalize)
 
     def start(self):
-        self.video.start()
+        super(MediaPlayer, self).start()
         self.audio.start()
 
     def pause(self):
         self.audio.stop()
-        self.video.stop()
+        self.stop()
 
     def seek(self, frame=None):
         if frame is None: frame = self.timeSlider.value()
-        self.video.setFrame(frame)
+        self.setFrame(frame)
         self.audio.seek(frame)
 
 app = QApplication([])

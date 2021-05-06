@@ -130,6 +130,7 @@ class Sound(QWidget):
         print(count, "/", len(self.stream), len(self.bpf), "\n")
 
     def seek(self, frame):
+        if frame >= len(self.bpf): frame = len(self.bpf)-1
         self.buffer.write(self.bpf[frame])
 
 if __name__ == "__main__":

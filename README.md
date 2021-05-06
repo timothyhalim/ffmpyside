@@ -10,34 +10,37 @@ Simple media player powered by Python, Qt, and FFMpeg
 - Git
 
 # Todo
-- Force Sync Video and Audio (by frame or time code)
-- Transfer gui and feature from <a href="https://github.com/timothyhalim/vlcplayer">VLC player</a>
-    - Gui
-    - Keep Ratio on resize
-    - Drag and drop file
-    - Double Click Fullscreen
-    - Volume Control
-    - Play/Pause on Click
-    - Toggle Button Visibility on hover
-    - Show current time code and frame on slider
-    - Timeslider seek
-    - Hide cursor after idle for 5 second
-    - Auto reset media on play end
-    - Open file dialog
-    - Right Click Menu
-    - Middle Click Seek
-    - Add keyboard short cut
-    - Pin On Top
-    - Show buffer progress
-    - Overlay 2 video
-    - Luminance Compare
-    - Youtube + annotation
-    - Playlist
+- Play/Pause on Click
+- Drag and drop file
+- Auto reset media on play end
+- Open file dialog
+- Pin On Top
+- Show buffer progress
+- Overlay 2 video
+- Luminance Compare
+- Youtube + annotation
+- Playlist
 
 # Change Log
+6 May 2021
+- Rearange classes and cleanup
+- Drag and drop paint event
+
 5 May 2021
-- Audio seek by frame
+- Gui
+- Keep Ratio on resize
+- Double Click Fullscreen
+- Volume Control
+- Toggle Button Visibility on hover
+- Show current time code and frame on slider
+- Hide cursor after idle for 5 second
 - Video stream async
+- Audio seek by frame
+- Timeslider seek
+- Right Click Menu
+- Middle Click Seek
+- Add keyboard short cut
+
 4 May 2021
 - Initial Work on Audio and Video Player
 

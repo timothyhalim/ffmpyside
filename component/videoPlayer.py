@@ -5,6 +5,8 @@ from PySide2.QtCore import QThread, QTimer, Qt, Signal
 from PySide2.QtGui import QImage, QPainter, QPixmap
 from PySide2.QtWidgets import QApplication, QWidget
 
+from .FrameWidget import FrameWidget
+
 import ffmpeg 
 
 class Stream(QThread):
@@ -54,25 +56,24 @@ class Stream(QThread):
             while stream.poll() is None:
                 packet = stream.stdout.read(packetSize)
                 try:
-                    frame = np.frombuffer(packet, self.currentFormat['np']).reshape([self.metadata['height'], self.metadata['width'], 3])
+                    frame = np.frombuffer(packet, dtype='b').reshape([self.metadata['height'], self.metadata['width'], 3])
                     self.packet.emit(frame)
                     stream.stdout.flush()
                 except:
                     pass
 
-class Image(QWidget):
+class Image(FrameWidget):
     frameChanged = Signal(int)
     frameCountChanged = Signal(int)
     stateChanged = Signal(str)
     ratioChanged = Signal(float)
     fpsChanged = Signal(float)
 
-    def __init__(self, file, bit, parent=None):
+    def __init__(self, file=None, parent=None):
         super(Image, self).__init__(parent=parent)
-
-        self.setAttribute(Qt.WA_Hover)
-        self.setMouseTracking(True)
         
+        self.setAcceptDrops(True)
+
         self.buffer = []
         self.frame = -1
         self.setFrame(0)
@@ -80,6 +81,8 @@ class Image(QWidget):
         self.timer = QTimer(self)
         self.timer.setInterval(1)
         self.timer.timeout.connect(self.draw)
+        if file:
+            self.setStream(file)
 
     def addStream(self, stream):
         self.buffer.append(stream)
@@ -93,8 +96,8 @@ class Image(QWidget):
         self.stream.finished.connect(self.finishedStreaming)
         self.stream.start()
 
+        self.setRatio(self.stream.metadata['width']/self.stream.metadata['height'])
         self.fpsChanged.emit(self.stream.metadata['fps'])
-        self.ratioChanged.emit(self.stream.metadata['width']/self.stream.metadata['height'])
         self.frameCountChanged.emit(self.stream.metadata['frameCount']-1)
 
     def setFrame(self, frame):
@@ -106,7 +109,7 @@ class Image(QWidget):
         self.frameChanged.emit(self.frame)
         image = QImage(self.buffer[self.frame], self.stream.metadata['width'], self.stream.metadata['height'], self.stream.currentFormat['qt'])
         self.pixmap = QPixmap(image)
-    
+
         self.update()
 
     def draw(self):
@@ -122,6 +125,7 @@ class Image(QWidget):
             painter.begin(self)
             painter.drawPixmap(self.rect(), self.pixmap)
             painter.end()
+        super(Image, self).paintEvent(event)
 
     def start(self):
         self.startTime = datetime.datetime.now()
@@ -133,6 +137,7 @@ class Image(QWidget):
 
 if __name__ == "__main__":
     app = QApplication([])
-    w = Image("60.mp4", 24, 500)
+    w = Image("60.mp4")
     w.show()
+    w.start()
     app.exec_()

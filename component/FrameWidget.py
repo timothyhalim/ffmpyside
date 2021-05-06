@@ -1,4 +1,5 @@
 from PySide2.QtCore import QPoint, QRect, QSize,Qt
+from PySide2.QtGui import QPainter, QPen
 from PySide2.QtWidgets import QSizeGrip, QWidget
 
 class SideGrip(QWidget):
@@ -62,7 +63,6 @@ class FrameWidget(QWidget):
         # self.setAttribute(Qt.WA_TranslucentBackground)
         self.setAttribute(Qt.WA_Hover)
         self.setMouseTracking(True)
-        self.setAcceptDrops(True)
 
         self._gripSize = 1
         self.initialGrip = self._gripSize
@@ -74,6 +74,8 @@ class FrameWidget(QWidget):
         ]
         self.cornerGrips = [QSizeGrip(self) for i in range(4)]
 
+        self.drawDrag = False
+        self.lastButton = Qt.MouseButton.NoButton
         self.setRatio(1280/720)
 
     @property
@@ -149,6 +151,77 @@ class FrameWidget(QWidget):
         
         self.updateGrips()
 
+    def mousePressEvent(self, event):
+        self.lastButton = event.button()
+        if event.button() == Qt.MouseButton.LeftButton:
+            self.startPos = event.pos()
+            
+    def mouseReleaseEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton:
+            if hasattr(self, "startPos"): delattr(self, "startPos")
+
+    def mouseMoveEvent(self, event):
+        if self.lastButton == Qt.MouseButton.LeftButton:
+            if not self.isFullScreen():
+                if hasattr(self, "startPos"):
+                    delta = event.pos()-self.startPos
+                    self.move(self.pos()+delta)
+
+    def mouseDoubleClickEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton:
+            self.toggleFullscreen()
+
+    def dragEnterEvent(self, event):
+        self.drawDrag = True
+        self.update()
+        if event.mimeData().hasUrls():
+            event.accept()
+        elif event.mimeData().hasText():
+            event.accept()
+        else:
+            event.ignore()
+            
+    def dragLeaveEvent(self, event):
+        self.drawDrag = False
+        self.update()
+
+    def dropEvent(self, event):
+        self.drawDrag = False
+        self.update()
+
+    def paintEvent(self, event):
+        if self.drawDrag:
+            s = self.size()
+            qp = QPainter()
+            qp.begin(self)
+            qp.setRenderHint(QPainter.Antialiasing, True)
+
+            pen = QPen(Qt.white, 5)
+            pen.setCapStyle(Qt.RoundCap)
+            qp.setPen(pen)
+            qp.setBrush(Qt.transparent)
+
+            outerWidth = s.width()-60
+            outerHeight = s.height()-60
+
+            ow = int(s.width()/2-outerWidth/2)
+            oh = int(s.height()/2-outerHeight/2)
+            qp.drawRoundedRect(ow, oh, outerWidth, outerHeight, 5, 5)
+            
+            qp.setBrush(Qt.white)
+            thickness = 12
+            length = 50
+            roundness = thickness/2
+
+            vS = int(s.width()/2-thickness/2)
+            vE = int(s.height()/2-length/2)
+            qp.drawRoundedRect(vS, vE, thickness, length, roundness, roundness)
+            hS = int(s.width()/2-length/2)
+            hE = int(s.height()/2-thickness/2)
+            qp.drawRoundedRect(hS, hE, length, thickness, roundness, roundness)
+
+            qp.end()
+
     def showNormal(self):
         self.setGripSize(self.initialGrip)
         self.update()
@@ -159,3 +232,9 @@ class FrameWidget(QWidget):
         self.setGripSize(0)
         self.update()
         return super(FrameWidget, self).showFullScreen()
+
+    def toggleFullscreen(self):
+        if self.isFullScreen():
+            self.showNormal()
+        else:
+            self.showFullScreen()
