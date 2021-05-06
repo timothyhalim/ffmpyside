@@ -137,7 +137,7 @@ class MediaPlayer(Image):
     def setupSignal(self):
         # Controller 
         self.closeBtn.clicked.connect(self.close)
-        self.playBtn.clicked.connect(self.start)
+        self.playBtn.clicked.connect(self.togglePlay)
         self.volumeSlider.valueChanged.connect(self.setVolume)
         self.addBtn.clicked.connect(self.openFile)
         self.timeSlider.sliderMoved.connect(self.seek)
@@ -282,7 +282,6 @@ class MediaPlayer(Image):
         a = max(target.getHeight(), height)
         i = min(target.getHeight(), height)
         ani.setDuration((a-i)/a*duration)
-        # ani.finished.connect(callback)
         return ani
 
     def toggleWidget(self, state):
@@ -320,6 +319,15 @@ class MediaPlayer(Image):
         else:
             self.setCursor(Qt.ArrowCursor)
             self.toggleVisibility(True)
+
+    def togglePlay(self, event=None):
+        print(self.state)
+        if self.state in ["Idle", "Stopped", "Paused", "Buffering"]:
+            self.start()
+            self.audio.start()
+        elif self.state == "Playing":
+            self.pause()
+            self.audio.pause()
 
     def onFrameCountChanged(self, frames):
         # self.timeSlider.setMaxTime(frames)
@@ -365,15 +373,7 @@ class MediaPlayer(Image):
     def setVolume(self):
         normalize = self.volumeSlider.value() / self.volumeSlider.maximum()
         self.audio.setVolume(normalize)
-
-    def start(self):
-        super(MediaPlayer, self).start()
-        self.audio.start()
-
-    def pause(self):
-        self.audio.stop()
-        self.stop()
-
+        
     def seek(self, frame=None):
         if frame is None: frame = self.timeSlider.value()
         self.setFrame(frame)

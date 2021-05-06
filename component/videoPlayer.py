@@ -56,7 +56,7 @@ class Stream(QThread):
             while stream.poll() is None:
                 packet = stream.stdout.read(packetSize)
                 try:
-                    frame = np.frombuffer(packet, dtype='b').reshape([self.metadata['height'], self.metadata['width'], 3])
+                    frame = np.frombuffer(packet, self.currentFormat['np']).reshape([self.metadata['height'], self.metadata['width'], 3])
                     self.packet.emit(frame)
                     stream.stdout.flush()
                 except:
@@ -75,8 +75,9 @@ class Image(FrameWidget):
         self.setAcceptDrops(True)
 
         self.buffer = []
-        self.frame = -1
+        self.frame = 0
         self.setFrame(0)
+        self.setState("Idle")
 
         self.timer = QTimer(self)
         self.timer.setInterval(1)
@@ -88,13 +89,14 @@ class Image(FrameWidget):
         self.buffer.append(stream)
 
     def finishedStreaming(self):
-        print("Finished")
+        self.setState("Idle")
 
     def setStream(self, file, bit=24):
         self.stream = Stream(file, bit=bit, parent=self)
         self.stream.packet.connect(self.addStream)
         self.stream.finished.connect(self.finishedStreaming)
         self.stream.start()
+        self.setState("Buffering")
 
         self.setRatio(self.stream.metadata['width']/self.stream.metadata['height'])
         self.fpsChanged.emit(self.stream.metadata['fps'])
@@ -102,8 +104,8 @@ class Image(FrameWidget):
 
     def setFrame(self, frame):
         if len(self.buffer) <= 0: return
-        if frame >= len(self.buffer): frame = len(self.buffer)-1
         if frame == self.frame: return
+        if frame >= len(self.buffer): self.pause(); return
         if frame >= self.stream.metadata['frameCount']: frame = self.stream.metadata['frameCount']-1
         self.frame = frame
         self.frameChanged.emit(self.frame)
@@ -112,12 +114,16 @@ class Image(FrameWidget):
 
         self.update()
 
+    def setState(self, state):
+        self.state = state
+        self.stateChanged.emit(self.state)
+
     def draw(self):
-        delta = (datetime.datetime.now() - self.startTime).total_seconds()
-        frame = int((delta/self.stream.metadata['duration']) * self.stream.metadata['frameCount'])
+        elapsed = (datetime.datetime.now() - self.startTime).total_seconds()
+        frame = int((elapsed/self.stream.metadata['duration']) * self.stream.metadata['frameCount'])
         self.setFrame(frame)
-        if self.frame >= self.stream.metadata['frameCount'] or delta >= self.stream.metadata['duration']:
-            self.timer.stop()
+        if self.frame >= self.stream.metadata['frameCount'] or elapsed >= self.stream.metadata['duration']:
+            self.stop()
 
     def paintEvent(self, event):
         if hasattr(self, "pixmap"):
@@ -128,12 +134,24 @@ class Image(FrameWidget):
         super(Image, self).paintEvent(event)
 
     def start(self):
-        self.startTime = datetime.datetime.now()
-        self.frame = -1
+        if self.state is "Paused":
+            self.startTime = datetime.datetime.now()-self.pausedSecond
+        else:
+            self.startTime = datetime.datetime.now()
+
+        self.pausedSecond = (self.startTime - self.startTime)
         self.timer.start()
+        self.setState("Playing")
         
     def stop(self):
         self.timer.stop()
+        self.setState("Stopped")
+
+    def pause(self, event=None):
+        self.timer.stop()
+        self.pausedSecond = (datetime.datetime.now() - self.startTime)
+        self.setState("Paused")
+
 
 if __name__ == "__main__":
     app = QApplication([])

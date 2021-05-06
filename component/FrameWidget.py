@@ -60,9 +60,10 @@ class FrameWidget(QWidget):
         super(FrameWidget, self).__init__(parent)
 
         self.setWindowFlags(Qt.Window | Qt.FramelessWindowHint)
-        # self.setAttribute(Qt.WA_TranslucentBackground)
         self.setAttribute(Qt.WA_Hover)
         self.setMouseTracking(True)
+        self.setObjectName("Frame")
+        self.setStyleSheet("#Frame {background-color:black;}")
 
         self._gripSize = 1
         self.initialGrip = self._gripSize

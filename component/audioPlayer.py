@@ -1,7 +1,7 @@
 import numpy as np
 from datetime import datetime
 from PySide2.QtWidgets import QApplication, QWidget
-from PySide2.QtCore import QByteArray, QTimer
+from PySide2.QtCore import QByteArray, QTimer, Signal
 from PySide2.QtMultimedia import QAudioFormat, QAudioOutput
 
 import ffmpeg 
@@ -41,7 +41,6 @@ def streamAudio(file, trim=None):
         )
 
         ticks = stream.shape[0]
-        print(audio_stream)
         metadata = {
             "codec" : audio_codec,
             "channels" : channels,
@@ -54,6 +53,8 @@ def streamAudio(file, trim=None):
         return stream, metadata
 
 class Sound(QWidget):
+    stateChanged = Signal(str)
+
     def __init__(self, file, trim=None, parent=None):
         super(Sound, self).__init__(parent=parent)
         self.stream, self.info = streamAudio(file, trim)
@@ -69,12 +70,13 @@ class Sound(QWidget):
 
         self.output = QAudioOutput(format=aformat)
         self.output.setBufferSize(self.samplerate * self.channels)
-        self.buffer = self.output.start()
         
         self.timer = QTimer(self)
         self.timer.setInterval(1)
         self.timer.timeout.connect(self.addToBuffer)
+
         self.setFrameCount(1)
+        self.setState("Idle")
 
     def setFrameCount(self, frameCount):
         self.frameCount = frameCount
@@ -84,31 +86,38 @@ class Sound(QWidget):
         delta = (datetime.now() - self.startTime).total_seconds()
         free = self.output.bytesFree()
         if free > 0:
-            if self.data.isEmpty():
-                self.data = self.bps[self.cs]
-                self.cs += 1
-                print(delta, self.cs)
             self.buffer.write(self.data)
             self.data.remove(0, free)
-        if delta >= self.duration or self.cs >= len(self.bps)-1: self.stop()
+        if delta >= self.duration: self.stop()
 
     def start(self):
-        
-        self.bps = [QByteArray(self.stream[int(i*self.output.bufferSize()):int((i+1)*self.output.bufferSize())].tobytes()) for i in range(int(self.duration - self.duration%1 + 1))]
+        if self.state == "Paused":
+            self.startTime = datetime.now()-self.pausedSecond
+            elapsed = int(self.pausedSecond.total_seconds() / self.info['duration'] * len(self.stream))
+            self.data = QByteArray(self.stream[elapsed:].tobytes())
+        else:
+            self.data = QByteArray(self.stream.tobytes())
+            self.startTime = datetime.now()
 
-        self.startTime = datetime.now()
-        self.cs = 0
-        self.consumed = 0
-        self.data = self.bps[0]
+        self.buffer = self.output.start()
         self.timer.start()
         
     def stop(self):
         if self.timer.isActive():
             self.timer.stop()
-            self.setBitPerFrame()
+
+    def setState(self, state):
+        self.state = state
+        self.stateChanged.emit(self.state)
 
     def setVolume(self, vol):
         self.output.setVolume(vol)
+
+    def pause(self, event=None):
+        self.timer.stop()
+        self.output.stop()
+        self.pausedSecond = (datetime.now() - self.startTime)
+        self.setState("Paused")
 
     def setBitPerFrame(self):
         bufferSize = self.samplerate * self.channels
@@ -126,8 +135,6 @@ class Sound(QWidget):
         for x in self.bpf:
             for y in self.bpf:
                 count += 1
-        print(self.frameCount)
-        print(count, "/", len(self.stream), len(self.bpf), "\n")
 
     def seek(self, frame):
         if frame >= len(self.bpf): frame = len(self.bpf)-1
