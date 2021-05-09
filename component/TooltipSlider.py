@@ -1,23 +1,35 @@
-from PySide2.QtCore import Property, QPoint
+from PySide2.QtCore import Property, QPoint, Qt
 from PySide2.QtWidgets import QApplication, QSlider, QStyleOptionSlider, QToolTip
 
-class TimeSlider(QSlider):
-    def __init__(self, *args, maxTime=1, offset=QPoint(-25, -45)):
-        super(TimeSlider, self).__init__(*args)
-        self.offset = offset
+import os
 
-        self.setMaxTime(maxTime)
-        self.setFixedHeight(16)
-        self.style = QApplication.style()
-        self.opt = QStyleOptionSlider()
-        self.setMaximum(1000)
+try:
+    fileDir = os.path.dirname(__file__)
+except:
+    import inspect
+    fileDir = os.path.dirname(inspect.getframeinfo(inspect.currentframe()).filename)
+
+class TooltipSlider(QSlider):
+    def __init__(self, *args, orientation=Qt.Horizontal, maxTime=1, offset=QPoint(-25, -45)):
+        super(TooltipSlider, self).__init__(*args)
+
+        self.resourcePath = os.path.normpath(os.path.join(fileDir, "icons")).replace("\\", "/")
 
         self.hover = False
-        self.valueChanged.connect(self.showTip)
-        # self.enterEvent = self.showTip
-        self.setTipVisibility(True)
+        self.offset = offset
+        
+        self.style = QApplication.style()
+        self.opt = QStyleOptionSlider()
 
+        self.setMaxTime(maxTime)
+        self.setMaximum(1000)
+        self.setTipVisibility(True)
+        self.setOrientation(orientation)
+        self.setSize(16)
         self.setStyleSheet(self.qss())
+        self.toolTipForm = 'f"{int(percentage / (1000*60*60)) % 24:02d}:{int(percentage / (1000*60)) % 60:02d}:{(percentage / (1000)) % 60:04.02f} ({self.value()})"'
+        
+        self.valueChanged.connect(self.showTip)
 
     def setMaxTime(self, maxTime):
         self.maxTime = maxTime
@@ -25,9 +37,28 @@ class TimeSlider(QSlider):
     def setTipVisibility(self, visible):
         self.tipVisible = visible
 
+    def setSize(self, value):
+        if self.orientation == Qt.Horizontal:
+            self.setHeight(value)
+        else:
+            self.setWidth(value)
+
+    def getSize(self):
+        if self.orientation == Qt.Horizontal:
+            self.getHeight()
+        else:
+            self.getWidth()
+
     def setHeight(self,value): self.setFixedHeight(value)
     def getHeight(self): return self.height()
     Height = Property(int, getHeight, setHeight)
+
+    def setWidth(self,value): self.setFixedWidth(value)
+    def getWidth(self): return self.width()
+    Width = Property(int, getWidth, setWidth)
+
+    def setOrientation(self, orientation=Qt.Horizontal):
+        return super().setOrientation(orientation)
 
     def enterEvent(self, event):
         super().enterEvent(event)
@@ -43,11 +74,11 @@ class TimeSlider(QSlider):
             self.initStyleOption(self.opt)
             rectHandle = self.style.subControlRect(self.style.CC_Slider, self.opt, self.style.SC_SliderHandle)
 
-            pos_local = rectHandle.topLeft() + self.offset
-            pos_global = self.mapToGlobal(pos_local)
-            currentms = self.maxTime * (float(self.value()) / max(self.maximum(), 1))
-            currentTime = f"{int(currentms / (1000*60*60)) % 24:02d}:{int(currentms / (1000*60)) % 60:02d}:{(currentms / (1000)) % 60:04.02f} ({self.value()})"
-            self.tip = QToolTip.showText(pos_global, currentTime, self)
+            posLocal = rectHandle.topLeft() + self.offset
+            posGlobal = self.mapToGlobal(posLocal)
+            percentage = self.maxTime * (float(self.value()) / max(self.maximum(), 1))
+            tooltipFormat = eval(self.toolTipForm)
+            self.tip = QToolTip.showText(posGlobal, tooltipFormat, self)
 
     def qss(self):
         return """

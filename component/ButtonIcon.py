@@ -4,9 +4,19 @@ from PySide2.QtWidgets import QPushButton
 
 import os
 
+try:
+    fileDir = os.path.dirname(__file__)
+except:
+    import inspect
+    fileDir = os.path.dirname(inspect.getframeinfo(inspect.currentframe()).filename)
+
 class ButtonIcon(QPushButton):
     def __init__(self, label=None, icon="", iconsize=40, inactive=(255, 255, 255), active=(255, 0, 0), duration=300):
         super(ButtonIcon, self).__init__()
+
+        self.resourcePath = os.path.normpath(os.path.join(fileDir, "..", "icons")).replace("\\", "/")
+        if not os.path.isfile(icon):
+            icon = os.path.join(self.resourcePath, icon)
 
         self.activeColor = QColor(active[0], active[1], active[2])
         self.inactiveColor = QColor(inactive[0], inactive[1], inactive[2])

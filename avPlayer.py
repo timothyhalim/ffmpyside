@@ -6,11 +6,10 @@ from PySide2.QtWidgets import QAction, QApplication, QFileDialog, QGraphicsOpaci
 import os
 from datetime import datetime, timedelta
 
-from component.audioPlayer import Sound
-from component.videoPlayer import Image
+from component.AudioContainer import Sound
+from component.VideoContainer import VideoContainer
 from component.ButtonIcon import ButtonIcon
 from component.TimeSlider import TimeSlider
-from component.FrameWidget import FrameWidget
 
 try:
     fileDir = os.path.dirname(__file__)
@@ -18,7 +17,7 @@ except:
     import inspect
     fileDir = os.path.dirname(inspect.getframeinfo(inspect.currentframe()).filename)
 
-class MediaPlayer(Image):
+class MediaPlayer(VideoContainer):
     def __init__(self, file, bit=24, trim=None, parent=None):
         super(MediaPlayer, self).__init__(parent=parent)
         
